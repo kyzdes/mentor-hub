@@ -1,0 +1,231 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MENTOR
+  MENTEE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationType {
+  NEW_BOOKING
+  REMINDER_1H
+  REMINDER_24H
+  CANCELLATION
+  RESCHEDULE
+}
+
+enum NotificationChannel {
+  EMAIL
+  PUSH
+  TELEGRAM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Users (Mentors & Mentees)
+model User {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  passwordHash  String   @map("password_hash") @db.VarChar(255)
+  firstName     String   @map("first_name") @db.VarChar(100)
+  lastName      String?  @map("last_name") @db.VarChar(100)
+  role          UserRole @default(MENTEE)
+  phone         String?  @db.VarChar(20)
+  timezone      String   @default("Europe/Moscow") @db.VarChar(50)
+  avatarUrl     String?  @map("avatar_url") @db.Text
+  telegramId    BigInt?  @unique @map("telegram_id")
+  telegramUsername String? @map("telegram_username") @db.VarChar(100)
+  emailVerified Boolean  @default(false) @map("email_verified")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  meetingTypes            MeetingType[]
+  availability            MentorAvailability[]
+  availabilityExceptions  AvailabilityException[]
+  bookingsAsMentor        Booking[]               @relation("MentorBookings")
+  bookingsAsMentee        Booking[]               @relation("MenteeBookings")
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+
+  @@map("users")
+}
+
+// Meeting Types
+model MeetingType {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mentorId        String   @map("mentor_id") @db.Uuid
+  name            String   @db.VarChar(200)
+  slug            String   @db.VarChar(200)
+  description     String?  @db.Text
+  duration        Int      // minutes
+  price           Decimal  @default(0) @db.Decimal(10, 2)
+  color           String   @default("#3B82F6") @db.VarChar(7)
+  icon            String?  @db.VarChar(50)
+  isActive        Boolean  @default(true) @map("is_active")
+  requiresApproval Boolean @default(false) @map("requires_approval")
+  monthlyLimit    Int?     @map("monthly_limit")
+  formFields      Json     @default("[]") @map("form_fields") @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  mentor   User      @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([mentorId, slug])
+  @@index([mentorId])
+  @@index([slug])
+  @@map("meeting_types")
+}
+
+// Mentor Availability (Recurring)
+model MentorAvailability {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mentorId    String   @map("mentor_id") @db.Uuid
+  dayOfWeek   Int      @map("day_of_week") // 0-6 (Sunday-Saturday)
+  startTime   String   @map("start_time") @db.Time(6)
+  endTime     String   @map("end_time") @db.Time(6)
+  timezone    String   @default("Europe/Moscow") @db.VarChar(50)
+  isRecurring Boolean  @default(true) @map("is_recurring")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  mentor User @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@index([mentorId])
+  @@map("mentor_availability")
+}
+
+// Availability Exceptions (Blocked dates)
+model AvailabilityException {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mentorId  String    @map("mentor_id") @db.Uuid
+  date      DateTime  @db.Date
+  startTime String?   @map("start_time") @db.Time(6)
+  endTime   String?   @map("end_time") @db.Time(6)
+  reason    String?   @db.Text
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  mentor User @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@index([mentorId, date])
+  @@map("availability_exceptions")
+}
+
+// Bookings
+model Booking {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetingTypeId     String        @map("meeting_type_id") @db.Uuid
+  mentorId          String        @map("mentor_id") @db.Uuid
+  menteeId          String?       @map("mentee_id") @db.Uuid
+
+  // Mentee info (even if not registered)
+  menteeName        String        @map("mentee_name") @db.VarChar(200)
+  menteeEmail       String        @map("mentee_email") @db.VarChar(255)
+  menteePhone       String?       @map("mentee_phone") @db.VarChar(20)
+
+  // Booking details
+  startTime         DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime           DateTime      @map("end_time") @db.Timestamptz(6)
+  timezone          String        @default("Europe/Moscow") @db.VarChar(50)
+
+  // Status
+  status            BookingStatus @default(PENDING)
+
+  // Form responses
+  formResponses     Json          @default("{}") @map("form_responses") @db.JsonB
+
+  // Meeting details
+  videoUrl          String?       @map("video_url") @db.Text
+  location          String?       @db.Text
+
+  // Notes
+  mentorNotes       String?       @map("mentor_notes") @db.Text
+  cancellationReason String?      @map("cancellation_reason") @db.Text
+
+  // Metadata
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  meetingType   MeetingType    @relation(fields: [meetingTypeId], references: [id], onDelete: Restrict)
+  mentor        User           @relation("MentorBookings", fields: [mentorId], references: [id], onDelete: Restrict)
+  mentee        User?          @relation("MenteeBookings", fields: [menteeId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([meetingTypeId])
+  @@index([status])
+  @@index([startTime])
+  @@map("bookings")
+}
+
+// Notifications
+model Notification {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  bookingId   String?             @map("booking_id") @db.Uuid
+  type        NotificationType
+  channel     NotificationChannel
+  status      NotificationStatus  @default(PENDING)
+  scheduledAt DateTime            @map("scheduled_at") @db.Timestamptz(6)
+  sentAt      DateTime?           @map("sent_at") @db.Timestamptz(6)
+  errorMessage String?            @map("error_message") @db.Text
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([scheduledAt], map: "idx_notifications_scheduled")
+  @@map("notifications")
+}
+
+// Audit Log
+model AuditLog {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  entityType String    @map("entity_type") @db.VarChar(50)
+  entityId   String    @map("entity_id") @db.Uuid
+  action     String    @db.VarChar(50) // 'create', 'update', 'delete', 'approve', etc.
+  oldData    Json?     @map("old_data") @db.JsonB
+  newData    Json?     @map("new_data") @db.JsonB
+  ipAddress  String?   @map("ip_address") @db.Inet
+  userAgent  String?   @map("user_agent") @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

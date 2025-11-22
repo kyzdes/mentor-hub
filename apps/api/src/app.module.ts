@@ -11,6 +11,14 @@ import { BookingsModule } from './bookings/bookings.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TelegramModule } from './telegram/telegram.module';
 
+// v2.0 Modules
+import { ReviewsModule } from './reviews/reviews.module';
+import { PaymentsModule } from './payments/payments.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { GamificationModule } from './gamification/gamification.module';
+import { GoalsModule } from './goals/goals.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+
 @Module({
   imports: [
     // Configuration
@@ -33,7 +41,7 @@ import { TelegramModule } from './telegram/telegram.module';
       }),
     }),
 
-    // Application modules
+    // Core modules (v1.0)
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -42,6 +50,14 @@ import { TelegramModule } from './telegram/telegram.module';
     BookingsModule,
     NotificationsModule,
     TelegramModule,
+
+    // v2.0 Modules
+    ReviewsModule,
+    PaymentsModule,
+    MessagingModule,
+    GamificationModule,
+    GoalsModule,
+    MarketplaceModule,
   ],
 })
 export class AppModule {}

@@ -91,3 +91,67 @@ export const bookingsApi = {
   getStats: (mentorId: string, params?: any) =>
     api.get('/bookings/stats/summary', { params: { mentorId, ...params } }),
 };
+
+// ============================================================================
+// v2.0 API METHODS
+// ============================================================================
+
+export const reviewsApi = {
+  create: (data: any) => api.post('/reviews', data),
+  getAll: (params?: any) => api.get('/reviews', { params }),
+  getOne: (id: string) => api.get(`/reviews/${id}`),
+  update: (id: string, data: any) => api.patch(`/reviews/${id}`, data),
+  delete: (id: string) => api.delete(`/reviews/${id}`),
+  respond: (id: string, response: string) =>
+    api.post(`/reviews/${id}/respond`, { response }),
+  markHelpful: (id: string) => api.post(`/reviews/${id}/helpful`),
+  getMentorStats: (mentorId: string) =>
+    api.get(`/reviews/mentor/${mentorId}/stats`),
+};
+
+export const paymentsApi = {
+  createIntent: (bookingId: string) =>
+    api.post('/payments/create-intent', { bookingId }),
+  getHistory: () => api.get('/payments/history'),
+  getEarnings: (params?: any) => api.get('/payments/earnings', { params }),
+};
+
+export const messagingApi = {
+  createConversation: (otherUserId: string) =>
+    api.post('/messaging/conversations', { otherUserId }),
+  getConversations: () => api.get('/messaging/conversations'),
+  getMessages: (conversationId: string, params?: any) =>
+    api.get(`/messaging/conversations/${conversationId}/messages`, { params }),
+  sendMessage: (data: any) => api.post('/messaging/messages', data),
+  markAsRead: (conversationId: string) =>
+    api.post('/messaging/conversations/mark-read', { conversationId }),
+};
+
+export const gamificationApi = {
+  getUserAchievements: () => api.get('/gamification/achievements'),
+  getLeaderboard: (type?: string, limit?: number) =>
+    api.get('/gamification/leaderboard', { params: { type, limit } }),
+  getUserStats: () => api.get('/gamification/stats'),
+};
+
+export const goalsApi = {
+  create: (data: any) => api.post('/goals', data),
+  getAll: (params?: any) => api.get('/goals', { params }),
+  getOne: (id: string) => api.get(`/goals/${id}`),
+  update: (id: string, data: any) => api.patch(`/goals/${id}`, data),
+  complete: (id: string) => api.post(`/goals/${id}/complete`),
+  addMilestone: (goalId: string, data: any) =>
+    api.post(`/goals/${goalId}/milestones`, data),
+  completeMilestone: (milestoneId: string) =>
+    api.post(`/goals/milestones/${milestoneId}/complete`),
+  getProgress: () => api.get('/goals/progress'),
+};
+
+export const marketplaceApi = {
+  searchMentors: (params?: any) => api.get('/marketplace/mentors', { params }),
+  getMentorProfile: (mentorId: string) =>
+    api.get(`/marketplace/mentors/${mentorId}`),
+  getFeaturedMentors: (limit?: number) =>
+    api.get('/marketplace/featured', { params: { limit } }),
+  getCategories: () => api.get('/marketplace/categories'),
+};

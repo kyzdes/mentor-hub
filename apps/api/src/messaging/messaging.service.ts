@@ -6,19 +6,30 @@ export class MessagingService {
   constructor(private prisma: PrismaService) {}
 
   async createConversation(user1Id: string, user2Id: string) {
-    // Check if conversation exists
-    const existing = await this.prisma.conversation.findFirst({
+    // Check if conversation exists between these two users
+    const conversations = await this.prisma.conversation.findMany({
       where: {
         participants: {
-          every: {
-            userId: { in: [user1Id, user2Id] },
-          },
+          some: { userId: user1Id },
         },
       },
-      include: { participants: true },
+      include: {
+        participants: true,
+      },
     });
 
-    if (existing && existing.participants.length === 2) {
+    // Find conversation with exactly these two participants
+    const existing = conversations.find((conv) => {
+      const userIds = conv.participants.map((p) => p.userId).sort();
+      const targetIds = [user1Id, user2Id].sort();
+      return (
+        conv.participants.length === 2 &&
+        userIds[0] === targetIds[0] &&
+        userIds[1] === targetIds[1]
+      );
+    });
+
+    if (existing) {
       return existing;
     }
 

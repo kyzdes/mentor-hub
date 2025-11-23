@@ -5,7 +5,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 export class GamificationService {
   constructor(private prisma: PrismaService) {}
 
-  async awardPoints(userId: string, points: number, reason: string) {
+  async awardPoints(userId: string, points: number, reason: string, skipAchievementCheck = false) {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -22,8 +22,10 @@ export class GamificationService {
       });
     }
 
-    // Check for achievement unlocks
-    await this.checkAchievements(userId);
+    // Check for achievement unlocks (but not when awarding points for achievements)
+    if (!skipAchievementCheck) {
+      await this.checkAchievements(userId);
+    }
 
     return { points: user.points, level: newLevel };
   }
@@ -74,7 +76,8 @@ export class GamificationService {
           },
         });
 
-        await this.awardPoints(userId, achievement.points, `Achievement: ${achievement.name}`);
+        // Award points with skipAchievementCheck=true to prevent infinite recursion
+        await this.awardPoints(userId, achievement.points, `Achievement: ${achievement.name}`, true);
       }
     }
   }

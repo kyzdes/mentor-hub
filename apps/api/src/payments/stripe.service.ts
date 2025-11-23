@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 
 @Injectable()
 export class StripeService {
   private readonly logger = new Logger(StripeService.name);
-  private stripe: any;
+  private stripe: Stripe;
   private webhookSecret: string;
 
   constructor(private configService: ConfigService) {
@@ -12,11 +13,13 @@ export class StripeService {
     this.webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET');
 
     if (stripeSecretKey) {
-      // TODO: Install stripe npm package
-      // this.stripe = require('stripe')(stripeSecretKey);
-      this.logger.log('Stripe initialized');
+      this.stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2024-11-20.acacia',
+        typescript: true,
+      });
+      this.logger.log('Stripe initialized successfully');
     } else {
-      this.logger.warn('Stripe not configured');
+      this.logger.warn('Stripe not configured - Payment features will not work');
     }
   }
 
